@@ -8,7 +8,6 @@ from langchain_huggingface import HuggingFaceEndpoint
 from langchain.chains import RetrievalQA
 from s3_processing import process_s3_file
 from pydantic import BaseModel
-import json
 
 # Load environment variables for AWS
 load_dotenv()
@@ -32,74 +31,49 @@ s3 = boto3.client(
     region_name=AWS_REGION
 )
 
-def lambda_handler(event, context):
-    """Main Lambda handler to route requests based on path."""
+@app.route('/upload', methods=['POST'])
+def upload_file():
+    """Endpoint to upload a file to the specified S3 bucket."""
     try:
-        route = event['path']
-        
-        if route == '/upload' and event['httpMethod'] == 'POST':
-            return upload_file(event)
-        elif route == '/query' and event['httpMethod'] == 'POST':
-            return process_query(event)
-        else:
-            return {
-                'statusCode': 404,
-                'body': json.dumps({'error': 'Route not found'})
-            }
+        file = request.files['file']
+        file_key = file.filename
+        s3.upload_fileobj(file, BUCKET_NAME, file_key)
+        return jsonify({"file_key": f"{file_key}"}), 200
     except Exception as e:
-        return {
-            'statusCode': 500,
-            'body': json.dumps({'error': str(e)})
-        }
+        return jsonify({"error": str(e)}), 500
 
-def upload_file(event):
-    """Handle file upload to S3."""
+
+@app.route('/query', methods=['POST'])
+def process_query():
+    """Endpoint to process a query based on content in an S3 file."""
+    data = request.get_json()
+    file_key = data.get('file_key')
+    question = data.get('question')
+    print('file_key:', file_key)
+    print('question:', question)
+
     try:
-        file_content = event['body']
-        file_key = event['headers'].get('file-name')
-        
-        if not file_key:
-            raise ValueError("File key is required in the header 'file-name'")
-
-        # Upload file to S3
-        s3.put_object(Bucket=BUCKET_NAME, Key=file_key, Body=file_content)
-        return {
-            'statusCode': 200,
-            'body': json.dumps({"file_key": file_key})
-        }
-    except Exception as e:
-        return {
-            'statusCode': 500,
-            'body': json.dumps({"error": str(e)})
-        }
-
-def process_query(event):
-    """Process a query based on content in an S3 file."""
-    try:
-        data = json.loads(event['body'])
-        file_key = data.get('file_key')
-        question = data.get('question')
-
-        # Process file from S3 and initialize vectorstore
+        # Process file from S3
         vectorstore = process_s3_file(file_key)
-        retriever = vectorstore.as_retriever(search_type="similarity", search_kwargs={"k": 5})
 
-        # Initialize model for RetrievalQA
+        retriever = vectorstore.as_retriever(search_type="similarity", search_kwargs={"k": 5})
+        print("Retriever created successfully")
+
         model = HuggingFaceEndpoint(repo_id="mistralai/Mistral-7B-Instruct-v0.2", 
                                     temperature=0.2, max_new_tokens=512)
-        
-        qa = RetrievalQA.from_chain_type(llm=model, retriever=retriever, chain_type="stuff")
+        print("Model initialized successfully")
 
-        # Generate answer
-        response = qa.invoke(question)
-        result = response.get("result", "Could not generate a response")
+        qa = RetrievalQA.from_chain_type(llm=model, retriever=retriever, chain_type="stuff")
+        print("QA chain created successfully")
         
-        return {
-            'statusCode': 200,
-            'body': json.dumps({"result": result})
-        }
+        # Generate the answer
+        response = qa.invoke(question)
+
+        result = response.get("result", "Could not generate a response")
+        print("response",result)
+        return jsonify({"result": result})
     except Exception as e:
-        return {
-            'statusCode': 500,
-            'body': json.dumps({"error": str(e)})
-        }
+        return jsonify({"error": str(e)}), 500
+
+if __name__ == '__main__':
+    app.run(debug=True,host='0.0.0.0', port=5001)
