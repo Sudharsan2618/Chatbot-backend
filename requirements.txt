@@ -5,3 +5,5 @@ langchain==0.3.4
 langchain_huggingface==0.1.1
 langchain_community==0.3.3
 PyMuPDF==1.24.12
+Flask==2.2.5
+Flask-CORS==4.0.1
