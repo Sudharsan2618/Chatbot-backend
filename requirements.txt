@@ -1,0 +1,7 @@
+urllib3==1.26.15
+boto3==1.35.51
+python-dotenv==1.0.1
+langchain==0.3.4
+langchain_huggingface==0.1.1
+langchain_community==0.3.3
+PyMuPDF==1.24.12
