@@ -42,6 +42,15 @@ def upload_file():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
+@app.route('/healthcheck', methods=['GET'])
+def health():
+    """use to check the health"""
+    try:
+        health = "Success"
+        return jsonify({"status": f"{health}"}), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
 
 @app.route('/query', methods=['POST'])
 def process_query():
