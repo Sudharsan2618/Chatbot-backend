@@ -84,6 +84,43 @@ def process_query():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
+@app.route('/cvSuggesion', methods=['POST'])
+def sv_suggession():
+    """Endpoint to process a query based on content in an S3 file."""
+    data = request.get_json()
+    file_key = data.get('file_key')
+    job_description = data.get('job_description')
+    print('file_key:', file_key)
+    print('job_description:', job_description)
+
+    try:
+        # Process file from S3
+        vectorstore = process_s3_file(file_key)
+
+        retriever = vectorstore.as_retriever(search_type="similarity", search_kwargs={"k": 5})
+        print("Retriever created successfully")
+
+        model = HuggingFaceEndpoint(repo_id="mistralai/Mistral-7B-Instruct-v0.2", 
+                                    temperature=0.2, max_new_tokens=512)
+        print("Model initialized successfully")
+
+        qa = RetrievalQA.from_chain_type(llm=model, retriever=retriever, chain_type="stuff")
+        print("QA chain created successfully")
+        
+        # Generate the answer
+        response = qa.invoke("""
+            I want you to act as my resumer reviewer. here i am sending the jon discription that i am going to apply 
+            and also i am giving my resume to you. i want you to make a clear cut view on what are the 
+            things, keywors, skills that i want to change in resume to ace this job interview. So use my embadded resume and i want you to give suggession according to that resume
+            . make your suggession less than 600 words. This is the job discription : {job_description}""")
+
+        result = response.get("result", "Could not generate a response")
+        print("response",result)
+        return jsonify({"result": result})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=int(os.getenv("PORT", 5000)))
 
