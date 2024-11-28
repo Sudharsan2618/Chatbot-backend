@@ -8,6 +8,8 @@ from langchain_huggingface import HuggingFaceEndpoint
 from langchain.chains import RetrievalQA
 from s3_processing import process_s3_file
 from pydantic import BaseModel
+import dns.resolver
+import smtplib
 
 # Load environment variables for AWS
 load_dotenv()
