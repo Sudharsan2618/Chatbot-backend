@@ -120,6 +120,60 @@ def sv_suggession():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
+def generate_email_variants(first_name, last_name, domain):
+    # Generate common email patterns
+    email_patterns = [
+        f"{first_name}{last_name[0]}@{domain}",
+        f"{first_name}@{domain}",
+        f"{first_name}{last_name}@{domain}",
+        f"{first_name}.{last_name}@{domain}",
+        f"{first_name}_{last_name}@{domain}",
+        f"{first_name[0]}.{last_name}@{domain}",
+        f"{first_name}.{last_name[0]}@{domain}",
+        f"{last_name}{first_name}@{domain}",
+    ]
+    return email_patterns
+
+def validate_email(email):
+    try:
+        domain = email.split('@')[1]
+        records = dns.resolver.resolve(domain, 'MX')
+        mx_record = str(records[0].exchange)
+
+        # Establish SMTP connection
+        server = smtplib.SMTP(mx_record)
+        server.helo()
+        server.mail('madsan123456@gmail.com')
+        code, message = server.rcpt(email)
+        server.quit()
+
+        return code == 250
+    except Exception as e:
+        print(f"Error validating email {email}: {e}")
+        return False
+
+@app.route('/find-email', methods=['POST'])
+def find_email():
+    data = request.json
+
+    # Extract input fields
+    first_name = data.get('first_name', '').strip().lower()
+    last_name = data.get('last_name', '').strip().lower()
+    domain = data.get('domain', '').strip().lower()
+
+    if not first_name or not last_name or not domain:
+        return jsonify({"error": "Please provide first_name, last_name, and domain"}), 400
+
+    # Generate email variants
+    email_variants = generate_email_variants(first_name, last_name, domain)
+
+    # Validate emails
+    for email in email_variants:
+        if validate_email(email):
+            return jsonify({"valid_email": email}), 200
+
+    # If no valid email is found
+    return jsonify({"message": "Sorry, not able to find a valid email ID."}), 404
 
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=int(os.getenv("PORT", 5000)))
