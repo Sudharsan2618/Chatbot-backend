@@ -28,7 +28,7 @@ s3 = boto3.client(
     region_name=AWS_REGION
 )
 
-BUCKET_NAME = "cv-sprint"
+BUCKET_NAME = "companian"
 
 
 def extract_text_from_pdf(file_path):
@@ -44,8 +44,11 @@ def process_s3_file(file_key):
     if not file_key:
         raise ValueError("File key is None. Ensure the key is correctly passed to the function.")
 
+    print("download starting")
     # Download file from S3
     s3.download_file(BUCKET_NAME, file_key, file_key)
+    print("download Finished")
+    
 
     # Extract and clean up text from the PDF
     text = extract_text_from_pdf(file_key)
