@@ -15,7 +15,7 @@
 
 # # Initialize Flask app and CORS
 # app = Flask(__name__)
-# CORS(app)
+# CORS(app, resources={r"/*": {"origins": "*"}})
 
 
 # AWS_ACCESS_KEY_ID = os.getenv('AWS_ACCESS_KEY_ID')
@@ -203,7 +203,7 @@ load_dotenv()
 
 # Initialize Flask app and CORS
 app = Flask(__name__)
-CORS(app)
+CORS(app, resources={r"/*": {"origins": "*"}})
 
 
 AWS_ACCESS_KEY_ID = os.getenv('AWS_ACCESS_KEY_ID')
