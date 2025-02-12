@@ -39,6 +39,28 @@ def extract_text_from_pdf(file_path):
     return text
 
 
+def Dummy_retriver(input_string):
+    # Check if input_string is None or empty
+    if not input_string:
+        raise ValueError("Input string is None or empty. Ensure a valid string is provided.")
+
+    print("Processing input string")
+
+    # Clean up the input string
+    content = input_string.strip()
+
+    # Wrap content in Document objects
+    documents = [Document(page_content=content)]
+    text_splitter = RecursiveCharacterTextSplitter(chunk_size=1024, chunk_overlap=50)
+    chunks = text_splitter.split_documents(documents)
+
+    # Initialize embeddings
+    embeddings = HuggingFaceInferenceAPIEmbeddings(api_key=HF_TOKEN, model_name="pinecone/bert-retriever-squad2")
+    vectorstore = Chroma.from_documents(chunks, embeddings)
+
+    print("Input string processed and embedded successfully!")
+    return vectorstore
+
 def process_s3_file(file_key):
     # Check if file_key is None
     if not file_key:
