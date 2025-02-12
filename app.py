@@ -194,7 +194,7 @@ from flask_cors import CORS
 import boto3
 from langchain import HuggingFaceHub
 from langchain.chains import RetrievalQA
-from s3_processing import process_s3_file
+from s3_processing import process_s3_file, Dummy_retriver
 from pydantic import BaseModel
 
 
@@ -306,27 +306,33 @@ def generate_file_response(query, file_key):
         return jsonify({"error": str(e)}), 500
 
 def generate_text(query):
-    print("running generate text")
+    print("Running generate text")
+    
     try:
-        llm_model = HuggingFaceHub(
-            repo_id="mistralai/Mistral-7B-Instruct-v0.3",
-            huggingfacehub_api_token=HF_TOKEN,
-            model_kwargs={
-                "temperature": 0.5,
-                "max_length": 500
-            }
-        )
+        # Process file from S3
+        dummy_promt = "You are an AI Assistant for Student Learning Platform. I am naming it as  Companian. So, give your response in a way that it will be helpful for the student to learn"
+        vectorstore = Dummy_retriver(dummy_promt)
 
-        response = llm_model(query)
+        retriever = vectorstore.as_retriever(search_type="similarity", search_kwargs={"k": 5})
+        print("Retriever created successfully")
 
-        # result = response.get("result", "Could not generate a response").strip()
+        model = HuggingFaceHub(repo_id="mistralai/Mistral-Small-24B-Base-2501", model_kwargs={'temperature': 0.5, 'max_new_tokens': 500},
+                               huggingfacehub_api_token=HF_TOKEN)
+        print("Model initialized successfully")
 
-        # if result:
-        #     # Ensure only the helpful content is returned
-        #     helpful_answer = result.split("Helpful Answer:")[-1].strip()
-        #     print("Helpful Answer:", helpful_answer)
-        print(response)
-        return response
+        qa = RetrievalQA.from_chain_type(llm=model, retriever=retriever, chain_type="stuff")
+        print("QA chain created successfully")
+        
+        # Generate the answer
+        response = qa.invoke(query)
+
+        result = response.get("result", "Could not generate a response").strip()
+
+        if result:
+            # Ensure only the helpful content is returned
+            helpful_answer = result.split("Helpful Answer:")[-1].strip()
+            print("Helpful Answer:", helpful_answer)
+            return helpful_answer
     except Exception as e:
         import traceback
         print("Error details:", traceback.format_exc())
